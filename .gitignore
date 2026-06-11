@@ -10,6 +10,8 @@ build/
 .next/
 out/
 coverage/
+*.tsbuildinfo
+.vite/
 
 # Logs
 *.log
@@ -28,3 +30,6 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Temporary scaffolds
+.tmp-*/
