@@ -1,8 +1,28 @@
-import type { GraphObject } from '../model/graphObjects'
+import {
+  CANVAS_HEIGHT,
+  CANVAS_PADDING,
+  CANVAS_WIDTH,
+  buildSvgPath,
+  getAxisTicks,
+  toSvgPoint,
+} from '../lib/graphMath'
+import type { AxisConfig, SampledFunctionGraph } from '../model/graphObjects'
 
-const placeholderObjects: GraphObject[] = []
+interface GraphCanvasProps {
+  axisConfig: AxisConfig
+  formula: string
+  graph: SampledFunctionGraph
+}
 
-export function GraphCanvas() {
+export function GraphCanvas({ axisConfig, formula, graph }: GraphCanvasProps) {
+  const { xTicks, yTicks } = getAxisTicks(axisConfig)
+  const plotLeft = CANVAS_PADDING
+  const plotRight = CANVAS_WIDTH - CANVAS_PADDING
+  const plotTop = CANVAS_PADDING
+  const plotBottom = CANVAS_HEIGHT - CANVAS_PADDING
+  const xAxisY = getHorizontalAxisY(axisConfig)
+  const yAxisX = getVerticalAxisX(axisConfig)
+
   return (
     <div className="flex h-full min-h-[520px] items-center justify-center">
       <div className="h-full w-full max-w-5xl overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm">
@@ -10,58 +30,135 @@ export function GraphCanvas() {
           aria-label="그래프 편집 캔버스"
           className="h-full min-h-[520px] w-full"
           role="img"
-          viewBox="0 0 960 600"
+          viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
         >
-          <defs>
-            <pattern
-              id="minor-grid"
-              width="24"
-              height="24"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M 24 0 L 0 0 0 24"
-                fill="none"
-                stroke="#e7e5e4"
-                strokeWidth="1"
-              />
-            </pattern>
-            <pattern
-              id="major-grid"
-              width="120"
-              height="120"
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width="120" height="120" fill="url(#minor-grid)" />
-              <path
-                d="M 120 0 L 0 0 0 120"
-                fill="none"
-                stroke="#d6d3d1"
-                strokeWidth="1.5"
-              />
-            </pattern>
-          </defs>
+          <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="#ffffff" />
+          <rect
+            x={plotLeft}
+            y={plotTop}
+            width={plotRight - plotLeft}
+            height={plotBottom - plotTop}
+            fill="#fafaf9"
+            stroke="#d6d3d1"
+            strokeWidth="1.5"
+          />
 
-          <rect width="960" height="600" fill="url(#major-grid)" />
-          <line x1="80" y1="520" x2="900" y2="520" stroke="#262626" strokeWidth="2" />
-          <line x1="80" y1="540" x2="80" y2="80" stroke="#262626" strokeWidth="2" />
-          <path d="M 900 520 l -10 -6 v 12 z" fill="#262626" />
-          <path d="M 80 80 l -6 10 h 12 z" fill="#262626" />
-          <text x="910" y="526" className="fill-neutral-800 text-lg font-semibold">
+          {xTicks.map((tick) => {
+            const { x } = toSvgPoint({ x: tick, y: 0 }, axisConfig)
+
+            return (
+              <g key={`x-${tick}`}>
+                <line
+                  x1={x}
+                  x2={x}
+                  y1={plotTop}
+                  y2={plotBottom}
+                  stroke="#e7e5e4"
+                  strokeWidth="1"
+                />
+                <text
+                  x={x}
+                  y={plotBottom + 24}
+                  className="fill-neutral-500 text-xs"
+                  textAnchor="middle"
+                >
+                  {tick}
+                </text>
+              </g>
+            )
+          })}
+
+          {yTicks.map((tick) => {
+            const { y } = toSvgPoint({ x: 0, y: tick }, axisConfig)
+
+            return (
+              <g key={`y-${tick}`}>
+                <line
+                  x1={plotLeft}
+                  x2={plotRight}
+                  y1={y}
+                  y2={y}
+                  stroke="#e7e5e4"
+                  strokeWidth="1"
+                />
+                <text
+                  x={plotLeft - 14}
+                  y={y + 4}
+                  className="fill-neutral-500 text-xs"
+                  textAnchor="end"
+                >
+                  {tick}
+                </text>
+              </g>
+            )
+          })}
+
+          <line
+            x1={plotLeft}
+            x2={plotRight}
+            y1={xAxisY}
+            y2={xAxisY}
+            stroke="#262626"
+            strokeWidth="2"
+          />
+          <line
+            x1={yAxisX}
+            x2={yAxisX}
+            y1={plotBottom}
+            y2={plotTop}
+            stroke="#262626"
+            strokeWidth="2"
+          />
+          <path d={`M ${plotRight} ${xAxisY} l -10 -6 v 12 z`} fill="#262626" />
+          <path d={`M ${yAxisX} ${plotTop} l -6 10 h 12 z`} fill="#262626" />
+          <text
+            x={plotRight + 16}
+            y={xAxisY + 6}
+            className="fill-neutral-800 text-lg font-semibold"
+          >
             x
           </text>
-          <text x="72" y="68" className="fill-neutral-800 text-lg font-semibold">
+          <text
+            x={yAxisX - 8}
+            y={plotTop - 14}
+            className="fill-neutral-800 text-lg font-semibold"
+          >
             y
           </text>
-          <text x="63" y="540" className="fill-neutral-500 text-base">
-            O
-          </text>
 
-          {placeholderObjects.map((object) => (
-            <g key={object.id} data-graph-object={object.kind} />
+          {graph.segments.map((segment, index) => (
+            <path
+              d={buildSvgPath(segment)}
+              fill="none"
+              key={`${formula}-${index}`}
+              stroke="#2563eb"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="3"
+            />
           ))}
+
+          <text x={plotLeft} y={plotTop - 20} className="fill-neutral-700 text-sm">
+            y = {formula}
+          </text>
         </svg>
       </div>
     </div>
   )
+}
+
+function getHorizontalAxisY(axisConfig: AxisConfig) {
+  if (axisConfig.yMin <= 0 && axisConfig.yMax >= 0) {
+    return toSvgPoint({ x: 0, y: 0 }, axisConfig).y
+  }
+
+  return axisConfig.yMin > 0 ? CANVAS_HEIGHT - CANVAS_PADDING : CANVAS_PADDING
+}
+
+function getVerticalAxisX(axisConfig: AxisConfig) {
+  if (axisConfig.xMin <= 0 && axisConfig.xMax >= 0) {
+    return toSvgPoint({ x: 0, y: 0 }, axisConfig).x
+  }
+
+  return axisConfig.xMin > 0 ? CANVAS_PADDING : CANVAS_WIDTH - CANVAS_PADDING
 }

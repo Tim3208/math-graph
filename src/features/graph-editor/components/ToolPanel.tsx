@@ -1,4 +1,4 @@
-const tools = ['선분', '꺾은선', '점', '라벨', '점선', '삭제']
+const tools = ['수식 그래프', '선분', '꺾은선', '점', '라벨', '점선']
 
 export function ToolPanel() {
   return (
@@ -7,7 +7,8 @@ export function ToolPanel() {
       <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-1">
         {tools.map((tool) => (
           <button
-            className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:border-blue-200 disabled:bg-blue-50 disabled:text-blue-700"
+            disabled={tool === '수식 그래프'}
             key={tool}
             type="button"
           >

@@ -3,6 +3,7 @@ export type GraphObject =
   | LineObject
   | PolylineObject
   | LabelObject
+  | FunctionGraphObject
 
 export interface PointObject {
   id: string
@@ -36,9 +37,41 @@ export interface LabelObject {
   text: string
 }
 
+export interface FunctionGraphObject {
+  id: string
+  kind: 'function'
+  formula: string
+  stroke: string
+  strokeWidth: number
+}
+
 export interface Coordinate {
   x: number
   y: number
 }
 
 export type StrokeStyle = 'solid' | 'dashed'
+
+export interface AxisConfig {
+  xMin: number
+  xMax: number
+  yMin: number
+  yMax: number
+  xTick: number
+  yTick: number
+}
+
+export interface FormulaInputState {
+  formula: string
+  error: string | null
+}
+
+export interface SvgPoint {
+  x: number
+  y: number
+}
+
+export interface SampledFunctionGraph {
+  segments: SvgPoint[][]
+  skippedPointCount: number
+}
