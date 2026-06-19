@@ -6,15 +6,14 @@ import {
   getAxisTicks,
   toSvgPoint,
 } from '../lib/graphMath'
-import type { AxisConfig, SampledFunctionGraph } from '../model/graphObjects'
+import type { AxisConfig, RenderedFunctionGraph } from '../model/graphObjects'
 
 interface GraphCanvasProps {
   axisConfig: AxisConfig
-  formula: string
-  graph: SampledFunctionGraph
+  graphs: RenderedFunctionGraph[]
 }
 
-export function GraphCanvas({ axisConfig, formula, graph }: GraphCanvasProps) {
+export function GraphCanvas({ axisConfig, graphs }: GraphCanvasProps) {
   const { xTicks, yTicks } = getAxisTicks(axisConfig)
   const plotLeft = CANVAS_PADDING
   const plotRight = CANVAS_WIDTH - CANVAS_PADDING
@@ -126,21 +125,38 @@ export function GraphCanvas({ axisConfig, formula, graph }: GraphCanvasProps) {
             y
           </text>
 
-          {graph.segments.map((segment, index) => (
-            <path
-              d={buildSvgPath(segment)}
-              fill="none"
-              key={`${formula}-${index}`}
-              stroke="#2563eb"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="3"
-            />
-          ))}
+          {graphs.flatMap((graph) =>
+            graph.graph.segments.map((segment, index) => (
+              <path
+                d={buildSvgPath(segment)}
+                fill="none"
+                key={`${graph.id}-${index}`}
+                stroke={graph.stroke}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={graph.strokeWidth}
+              />
+            )),
+          )}
 
-          <text x={plotLeft} y={plotTop - 20} className="fill-neutral-700 text-sm">
-            y = {formula}
-          </text>
+          <g transform={`translate(${plotLeft + 12} ${plotTop + 20})`}>
+            {graphs.map((graph, index) => (
+              <g key={graph.id} transform={`translate(0 ${index * 22})`}>
+                <line
+                  x1="0"
+                  x2="22"
+                  y1="0"
+                  y2="0"
+                  stroke={graph.stroke}
+                  strokeLinecap="round"
+                  strokeWidth={graph.strokeWidth}
+                />
+                <text x="30" y="4" className="fill-neutral-700 text-sm">
+                  y = {graph.formula}
+                </text>
+              </g>
+            ))}
+          </g>
         </svg>
       </div>
     </div>

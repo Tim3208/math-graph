@@ -1,6 +1,8 @@
 import { compile } from 'mathjs'
 import type {
   AxisConfig,
+  FunctionGraphInputState,
+  RenderedFunctionGraph,
   SampledFunctionGraph,
   SvgPoint,
 } from '../model/graphObjects'
@@ -18,6 +20,8 @@ export const DEFAULT_AXIS_CONFIG: AxisConfig = {
   yTick: 1,
 }
 
+const EMPTY_GRAPH: SampledFunctionGraph = { segments: [], skippedPointCount: 0 }
+
 export interface ValidationResult {
   isValid: boolean
   error: string | null
@@ -25,6 +29,11 @@ export interface ValidationResult {
 
 export interface CompiledFormula {
   evaluate: (x: number) => number
+}
+
+export interface FunctionDomain {
+  xMin: number
+  xMax: number
 }
 
 interface MathCompiledExpression {
@@ -104,10 +113,52 @@ export function compileFormula(input: string): CompiledFormula {
   }
 }
 
+export function buildRenderedFunctionGraphs(
+  functionGraphs: FunctionGraphInputState[],
+  axis: AxisConfig,
+): { graphs: RenderedFunctionGraph[]; axisError: string | null } {
+  const axisValidation = validateAxisConfig(axis)
+
+  if (!axisValidation.isValid) {
+    return {
+      graphs: functionGraphs.map((functionGraph) => ({
+        ...functionGraph,
+        graph: EMPTY_GRAPH,
+      })),
+      axisError: axisValidation.error,
+    }
+  }
+
+  return {
+    graphs: functionGraphs.map((functionGraph) => {
+      try {
+        const compiledFormula = compileFormula(functionGraph.formula)
+
+        return {
+          ...functionGraph,
+          graph: sampleFunctionGraph(compiledFormula, axis, 480, {
+            xMin: functionGraph.xMin,
+            xMax: functionGraph.xMax,
+          }),
+          error: null,
+        }
+      } catch (error) {
+        return {
+          ...functionGraph,
+          graph: EMPTY_GRAPH,
+          error: error instanceof Error ? error.message : '수식을 해석할 수 없습니다.',
+        }
+      }
+    }),
+    axisError: null,
+  }
+}
+
 export function sampleFunctionGraph(
   formula: CompiledFormula,
   axis: AxisConfig,
   sampleCount = 480,
+  domain?: FunctionDomain,
 ): SampledFunctionGraph {
   const axisValidation = validateAxisConfig(axis)
 
@@ -115,15 +166,21 @@ export function sampleFunctionGraph(
     throw new Error(axisValidation.error ?? '축 설정이 올바르지 않습니다.')
   }
 
+  const bounds = getSampleBounds(axis, domain)
+
+  if (bounds === null) {
+    return { segments: [], skippedPointCount: 0 }
+  }
+
   const segments: SvgPoint[][] = []
   let currentSegment: SvgPoint[] = []
   let skippedPointCount = 0
   let lastValue: number | null = null
-  const step = (axis.xMax - axis.xMin) / sampleCount
+  const step = (bounds.xMax - bounds.xMin) / sampleCount
   const yRange = axis.yMax - axis.yMin
 
   for (let index = 0; index <= sampleCount; index += 1) {
-    const x = axis.xMin + step * index
+    const x = bounds.xMin + step * index
     const y = formula.evaluate(x)
     const isRenderable =
       Number.isFinite(y) &&
@@ -192,6 +249,29 @@ function buildTicks(min: number, max: number, tick: number): number[] {
 
 function crossesLikelyAsymptote(lastValue: number | null, value: number, yRange: number) {
   return lastValue !== null && Math.abs(value - lastValue) > yRange * 0.9
+}
+
+function getSampleBounds(axis: AxisConfig, domain?: FunctionDomain) {
+  if (!domain) {
+    return { xMin: axis.xMin, xMax: axis.xMax }
+  }
+
+  if (!Number.isFinite(domain.xMin) || !Number.isFinite(domain.xMax)) {
+    throw new Error('그래프 구간은 유효한 숫자여야 합니다.')
+  }
+
+  if (domain.xMin >= domain.xMax) {
+    throw new Error('그래프 구간은 시작 x가 끝 x보다 작아야 합니다.')
+  }
+
+  const xMin = Math.max(axis.xMin, domain.xMin)
+  const xMax = Math.min(axis.xMax, domain.xMax)
+
+  if (xMin >= xMax) {
+    return null
+  }
+
+  return { xMin, xMax }
 }
 
 function normalizeFormulaInput(formula: string) {

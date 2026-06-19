@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_AXIS_CONFIG,
+  buildRenderedFunctionGraphs,
   compileFormula,
   sampleFunctionGraph,
   toSvgPoint,
@@ -99,6 +100,101 @@ describe('sampleFunctionGraph', () => {
 
     expect(graph.segments.length).toBeGreaterThan(1)
     expect(graph.skippedPointCount).toBeGreaterThan(0)
+  })
+
+  it('samples only inside a function x-domain', () => {
+    const axis = {
+      ...DEFAULT_AXIS_CONFIG,
+      xMin: -2,
+      xMax: 2,
+    }
+    const graph = sampleFunctionGraph(compileFormula('x'), axis, 4, {
+      xMin: -1,
+      xMax: 1,
+    })
+    const segment = graph.segments[0]
+
+    expect(segment[0].x).toBeCloseTo(toSvgPoint({ x: -1, y: -1 }, axis).x)
+    expect(segment.at(-1)?.x).toBeCloseTo(toSvgPoint({ x: 1, y: 1 }, axis).x)
+  })
+
+  it('clamps a function x-domain to the visible axis range', () => {
+    const axis = {
+      ...DEFAULT_AXIS_CONFIG,
+      xMin: -2,
+      xMax: 2,
+    }
+    const graph = sampleFunctionGraph(compileFormula('x'), axis, 3, {
+      xMin: -10,
+      xMax: 1,
+    })
+    const segment = graph.segments[0]
+
+    expect(segment[0].x).toBeCloseTo(toSvgPoint({ x: -2, y: -2 }, axis).x)
+    expect(segment.at(-1)?.x).toBeCloseTo(toSvgPoint({ x: 1, y: 1 }, axis).x)
+  })
+
+  it('returns an empty graph when a function x-domain is outside the axis range', () => {
+    const graph = sampleFunctionGraph(
+      compileFormula('x'),
+      {
+        ...DEFAULT_AXIS_CONFIG,
+        xMin: -2,
+        xMax: 2,
+      },
+      4,
+      {
+        xMin: 3,
+        xMax: 4,
+      },
+    )
+
+    expect(graph).toEqual({ segments: [], skippedPointCount: 0 })
+  })
+
+  it('rejects an inverted function x-domain', () => {
+    expect(() =>
+      sampleFunctionGraph(compileFormula('x'), DEFAULT_AXIS_CONFIG, 4, {
+        xMin: 1,
+        xMax: 1,
+      }),
+    ).toThrow('시작 x')
+  })
+})
+
+describe('buildRenderedFunctionGraphs', () => {
+  it('keeps valid graphs renderable when another formula fails', () => {
+    const result = buildRenderedFunctionGraphs(
+      [
+        {
+          id: 'valid',
+          formula: 'x',
+          xMin: -1,
+          xMax: 1,
+          stroke: '#2563eb',
+          strokeWidth: 3,
+          error: null,
+        },
+        {
+          id: 'invalid',
+          formula: 'y=x',
+          xMin: -1,
+          xMax: 1,
+          stroke: '#dc2626',
+          strokeWidth: 3,
+          error: null,
+        },
+      ],
+      DEFAULT_AXIS_CONFIG,
+    )
+    const validGraph = result.graphs.find((graph) => graph.id === 'valid')
+    const invalidGraph = result.graphs.find((graph) => graph.id === 'invalid')
+
+    expect(result.axisError).toBeNull()
+    expect(validGraph?.error).toBeNull()
+    expect(validGraph?.graph.segments.length).toBeGreaterThan(0)
+    expect(invalidGraph?.error).toBeTruthy()
+    expect(invalidGraph?.graph).toEqual({ segments: [], skippedPointCount: 0 })
   })
 })
 

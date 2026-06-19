@@ -4,45 +4,59 @@ import { PropertiesPanel } from './components/PropertiesPanel'
 import { ToolPanel } from './components/ToolPanel'
 import {
   DEFAULT_AXIS_CONFIG,
-  compileFormula,
-  sampleFunctionGraph,
-  validateAxisConfig,
+  buildRenderedFunctionGraphs,
 } from './lib/graphMath'
-import type { AxisConfig, FormulaInputState } from './model/graphObjects'
+import type { AxisConfig, FunctionGraphInputState } from './model/graphObjects'
+
+const GRAPH_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2']
 
 export function GraphEditorPage() {
-  const [formulaState, setFormulaState] = useState<FormulaInputState>({
-    formula: 'x^2',
-    error: null,
-  })
+  const [functionGraphs, setFunctionGraphs] = useState<FunctionGraphInputState[]>([
+    createFunctionGraph('function-1', 'x^2', DEFAULT_AXIS_CONFIG, GRAPH_COLORS[0]),
+  ])
+  const [nextGraphId, setNextGraphId] = useState(2)
   const [axisConfig, setAxisConfig] = useState<AxisConfig>(DEFAULT_AXIS_CONFIG)
 
-  const graphResult = useMemo(() => {
-    const axisValidation = validateAxisConfig(axisConfig)
+  const graphResult = useMemo(
+    () => buildRenderedFunctionGraphs(functionGraphs, axisConfig),
+    [axisConfig, functionGraphs],
+  )
 
-    if (!axisValidation.isValid) {
-      return {
-        graph: { segments: [], skippedPointCount: 0 },
-        error: axisValidation.error,
-      }
-    }
+  const updateFunctionGraph = (
+    id: string,
+    updates: Partial<Omit<FunctionGraphInputState, 'id'>>,
+  ) => {
+    setFunctionGraphs((graphs) =>
+      graphs.map((graph) =>
+        graph.id === id
+          ? {
+              ...graph,
+              ...updates,
+              error: null,
+            }
+          : graph,
+      ),
+    )
+  }
 
-    try {
-      const compiledFormula = compileFormula(formulaState.formula)
+  const addFunctionGraph = () => {
+    setFunctionGraphs((graphs) => [
+      ...graphs,
+      createFunctionGraph(
+        `function-${nextGraphId}`,
+        'x',
+        axisConfig,
+        GRAPH_COLORS[(nextGraphId - 1) % GRAPH_COLORS.length],
+      ),
+    ])
+    setNextGraphId((id) => id + 1)
+  }
 
-      return {
-        graph: sampleFunctionGraph(compiledFormula, axisConfig),
-        error: null,
-      }
-    } catch (error) {
-      return {
-        graph: { segments: [], skippedPointCount: 0 },
-        error: error instanceof Error ? error.message : '수식을 해석할 수 없습니다.',
-      }
-    }
-  }, [axisConfig, formulaState.formula])
-
-  const formulaError = formulaState.error ?? graphResult.error
+  const removeFunctionGraph = (id: string) => {
+    setFunctionGraphs((graphs) =>
+      graphs.length === 1 ? graphs : graphs.filter((graph) => graph.id !== id),
+    )
+  }
 
   return (
     <main className="min-h-screen bg-stone-100 text-neutral-950">
@@ -71,20 +85,37 @@ export function GraphEditorPage() {
           <section className="min-h-[560px] border-y border-neutral-200 bg-stone-200/70 p-4 lg:border-x lg:border-y-0">
             <GraphCanvas
               axisConfig={axisConfig}
-              formula={formulaState.formula}
-              graph={graphResult.graph}
+              graphs={graphResult.graphs}
             />
           </section>
           <PropertiesPanel
             axisConfig={axisConfig}
-            error={formulaError}
-            formula={formulaState.formula}
-            skippedPointCount={graphResult.graph.skippedPointCount}
+            axisError={graphResult.axisError}
+            graphs={graphResult.graphs}
             onAxisConfigChange={setAxisConfig}
-            onFormulaChange={(formula) => setFormulaState({ formula, error: null })}
+            onAddGraph={addFunctionGraph}
+            onGraphChange={updateFunctionGraph}
+            onGraphRemove={removeFunctionGraph}
           />
         </div>
       </div>
     </main>
   )
+}
+
+function createFunctionGraph(
+  id: string,
+  formula: string,
+  axisConfig: AxisConfig,
+  stroke: string,
+): FunctionGraphInputState {
+  return {
+    id,
+    formula,
+    xMin: axisConfig.xMin,
+    xMax: axisConfig.xMax,
+    stroke,
+    strokeWidth: 3,
+    error: null,
+  }
 }
