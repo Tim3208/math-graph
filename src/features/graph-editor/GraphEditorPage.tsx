@@ -1,7 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { GraphCanvas } from './components/GraphCanvas'
+import { GraphSvg } from './components/GraphSvg'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { ToolPanel } from './components/ToolPanel'
+import {
+  downloadPng,
+  downloadSvg,
+  serializeSvgElement,
+} from './lib/exportGraph'
 import {
   DEFAULT_AXIS_CONFIG,
   buildRenderedFunctionGraphs,
@@ -23,6 +29,8 @@ export function GraphEditorPage() {
   const [nextGraphId, setNextGraphId] = useState(2)
   const [nextMarkerId, setNextMarkerId] = useState(1)
   const [axisConfig, setAxisConfig] = useState<AxisConfig>(DEFAULT_AXIS_CONFIG)
+  const exportSvgRef = useRef<SVGSVGElement>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const graphResult = useMemo(
     () => buildRenderedFunctionGraphs(functionGraphs, axisConfig),
@@ -98,6 +106,32 @@ export function GraphEditorPage() {
     setProjectionMarkers((markers) => markers.filter((marker) => marker.id !== id))
   }
 
+  const getExportSvgString = () => {
+    if (!exportSvgRef.current) {
+      throw new Error('내보낼 그래프를 찾을 수 없습니다.')
+    }
+
+    return serializeSvgElement(exportSvgRef.current)
+  }
+
+  const handleSvgDownload = () => {
+    try {
+      setExportError(null)
+      downloadSvg(getExportSvgString())
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'SVG 저장에 실패했습니다.')
+    }
+  }
+
+  const handlePngDownload = async () => {
+    try {
+      setExportError(null)
+      await downloadPng(getExportSvgString())
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'PNG 저장에 실패했습니다.')
+    }
+  }
+
   return (
     <main className="min-h-screen bg-stone-100 text-neutral-950">
       <div className="flex min-h-screen flex-col">
@@ -110,14 +144,25 @@ export function GraphEditorPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
-                저장
+              <button
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                type="button"
+                onClick={handleSvgDownload}
+              >
+                SVG 저장
               </button>
-              <button className="rounded-md bg-neutral-950 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800">
-                내보내기
+              <button
+                className="rounded-md bg-neutral-950 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                type="button"
+                onClick={handlePngDownload}
+              >
+                PNG 저장
               </button>
             </div>
           </div>
+          {exportError ? (
+            <p className="mt-2 text-sm text-red-600">{exportError}</p>
+          ) : null}
         </header>
 
         <div className="grid flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)_280px]">
@@ -141,6 +186,18 @@ export function GraphEditorPage() {
             onGraphRemove={removeFunctionGraph}
             onMarkerChange={updateProjectionMarker}
             onMarkerRemove={removeProjectionMarker}
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-[9999px] top-0 h-0 w-0 overflow-hidden"
+        >
+          <GraphSvg
+            axisConfig={axisConfig}
+            graphs={graphResult.graphs}
+            markers={renderedMarkers}
+            ref={exportSvgRef}
+            variant="export"
           />
         </div>
       </div>
