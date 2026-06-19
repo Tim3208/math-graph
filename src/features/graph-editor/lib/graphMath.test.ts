@@ -24,8 +24,11 @@ describe('compileFormula', () => {
     expect(() => compileFormula('y=x^2')).toThrow('우변만 입력')
   })
 
-  it('rejects implicit multiplication', () => {
-    expect(() => compileFormula('2x+1')).toThrow('* 기호')
+  it('supports implicit multiplication', () => {
+    expect(compileFormula('x^3 - 4x^2').evaluate(2)).toBe(-8)
+    expect(compileFormula('2(x+1)').evaluate(2)).toBe(6)
+    expect(compileFormula('(x+1)(x-1)').evaluate(2)).toBe(3)
+    expect(compileFormula('x(x+1)').evaluate(2)).toBe(6)
   })
 
   it('returns NaN for non-renderable values', () => {

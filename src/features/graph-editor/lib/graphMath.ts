@@ -78,14 +78,10 @@ export function compileFormula(input: string): CompiledFormula {
     throw new Error('수식은 y= 없이 우변만 입력하세요.')
   }
 
-  if (hasImplicitMultiplication(formula)) {
-    throw new Error('곱셈은 * 기호로 명시하세요.')
-  }
-
   let code: MathCompiledExpression
 
   try {
-    code = compile(formula) as MathCompiledExpression
+    code = compile(normalizeFormulaInput(formula)) as MathCompiledExpression
   } catch {
     throw new Error('수식을 해석할 수 없습니다.')
   }
@@ -198,8 +194,8 @@ function crossesLikelyAsymptote(lastValue: number | null, value: number, yRange:
   return lastValue !== null && Math.abs(value - lastValue) > yRange * 0.9
 }
 
-function hasImplicitMultiplication(formula: string) {
-  return /(?:\d|\))\s*(?:x|\()/i.test(formula) || /x\s*\d/i.test(formula)
+function normalizeFormulaInput(formula: string) {
+  return formula.replace(/\bx\s*(?=\()/g, 'x * ')
 }
 
 function axisLabel(key: string) {
