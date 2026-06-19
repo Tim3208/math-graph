@@ -77,6 +77,27 @@ export interface RenderedFunctionGraph extends FunctionGraphInputState {
   graph: SampledFunctionGraph
 }
 
+export interface ProjectionMarkerInputState {
+  id: string
+  x: number
+  y: number
+  pointLabel: string
+  xLabel: string
+  yLabel: string
+  showPoint: boolean
+  showXGuide: boolean
+  showYGuide: boolean
+  stroke: string
+  error: string | null
+}
+
+export interface RenderedProjectionMarker extends ProjectionMarkerInputState {
+  isVisible: boolean
+  point: SvgPoint | null
+  xGuideEnd: SvgPoint | null
+  yGuideEnd: SvgPoint | null
+}
+
 export interface SvgPoint {
   x: number
   y: number

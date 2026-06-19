@@ -1,20 +1,29 @@
 import type {
   AxisConfig,
   FunctionGraphInputState,
+  ProjectionMarkerInputState,
   RenderedFunctionGraph,
+  RenderedProjectionMarker,
 } from '../model/graphObjects'
 
 interface PropertiesPanelProps {
   axisConfig: AxisConfig
   axisError: string | null
   graphs: RenderedFunctionGraph[]
+  markers: RenderedProjectionMarker[]
   onAxisConfigChange: (axisConfig: AxisConfig) => void
   onAddGraph: () => void
+  onAddMarker: () => void
   onGraphChange: (
     id: string,
     updates: Partial<Omit<FunctionGraphInputState, 'id'>>,
   ) => void
   onGraphRemove: (id: string) => void
+  onMarkerChange: (
+    id: string,
+    updates: Partial<Omit<ProjectionMarkerInputState, 'id'>>,
+  ) => void
+  onMarkerRemove: (id: string) => void
 }
 
 const axisFields = [
@@ -30,10 +39,14 @@ export function PropertiesPanel({
   axisConfig,
   axisError,
   graphs,
+  markers,
   onAxisConfigChange,
   onAddGraph,
+  onAddMarker,
   onGraphChange,
   onGraphRemove,
+  onMarkerChange,
+  onMarkerRemove,
 }: PropertiesPanelProps) {
   const canRemoveGraph = graphs.length > 1
 
@@ -145,6 +158,181 @@ export function PropertiesPanel({
                             : ''
                         }`
                       : '현재 화면과 겹치는 구간이 없습니다.'}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-medium text-neutral-700">보조 표시</h3>
+            <button
+              className="rounded-md bg-neutral-950 px-3 py-2 text-xs font-medium text-white hover:bg-neutral-800"
+              type="button"
+              onClick={onAddMarker}
+            >
+              표시 추가
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-3">
+            {markers.length === 0 ? (
+              <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-500">
+                점, 점선, 축 라벨을 추가할 수 있습니다.
+              </p>
+            ) : null}
+
+            {markers.map((marker, index) => (
+              <div
+                className="rounded-md border border-neutral-200 bg-neutral-50 p-3"
+                key={marker.id}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: marker.stroke }}
+                    />
+                    <span className="truncate font-medium text-neutral-800">
+                      표시 {index + 1}
+                    </span>
+                  </div>
+                  <button
+                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-white"
+                    type="button"
+                    onClick={() => onMarkerRemove(marker.id)}
+                  >
+                    삭제
+                  </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-medium text-neutral-500">x 좌표</span>
+                    <input
+                      className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2"
+                      step="any"
+                      type="number"
+                      value={marker.x}
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { x: Number(event.target.value) })
+                      }
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-neutral-500">y 좌표</span>
+                    <input
+                      className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2"
+                      step="any"
+                      type="number"
+                      value={marker.y}
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { y: Number(event.target.value) })
+                      }
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <label className="block">
+                    <span className="text-xs font-medium text-neutral-500">점 라벨</span>
+                    <input
+                      className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
+                      placeholder="P"
+                      type="text"
+                      value={marker.pointLabel}
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { pointLabel: event.target.value })
+                      }
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs font-medium text-neutral-500">
+                        x축 라벨
+                      </span>
+                      <input
+                        className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
+                        placeholder="4"
+                        type="text"
+                        value={marker.xLabel}
+                        onChange={(event) =>
+                          onMarkerChange(marker.id, { xLabel: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-neutral-500">
+                        y축 라벨
+                      </span>
+                      <input
+                        className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm"
+                        placeholder="3a"
+                        type="text"
+                        value={marker.yLabel}
+                        onChange={(event) =>
+                          onMarkerChange(marker.id, { yLabel: event.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      checked={marker.showPoint}
+                      type="checkbox"
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { showPoint: event.target.checked })
+                      }
+                    />
+                    <span>점 표시</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      checked={marker.showXGuide}
+                      type="checkbox"
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { showXGuide: event.target.checked })
+                      }
+                    />
+                    <span>x축 점선</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      checked={marker.showYGuide}
+                      type="checkbox"
+                      onChange={(event) =>
+                        onMarkerChange(marker.id, { showYGuide: event.target.checked })
+                      }
+                    />
+                    <span>y축 점선</span>
+                  </label>
+                </div>
+
+                <label className="mt-3 flex items-center gap-2">
+                  <span className="text-xs font-medium text-neutral-500">색상</span>
+                  <input
+                    className="h-8 w-10 rounded border border-neutral-300 bg-white p-1"
+                    type="color"
+                    value={marker.stroke}
+                    onChange={(event) =>
+                      onMarkerChange(marker.id, { stroke: event.target.value })
+                    }
+                  />
+                </label>
+
+                {marker.error ? (
+                  <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    {marker.error}
+                  </p>
+                ) : (
+                  <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                    표시됨
                   </p>
                 )}
               </div>

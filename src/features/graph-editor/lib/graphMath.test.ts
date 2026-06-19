@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_AXIS_CONFIG,
   buildRenderedFunctionGraphs,
+  buildRenderedProjectionMarkers,
   compileFormula,
+  getHorizontalAxisSvgY,
+  getVerticalAxisSvgX,
   sampleFunctionGraph,
   toSvgPoint,
   validateAxisConfig,
@@ -195,6 +198,99 @@ describe('buildRenderedFunctionGraphs', () => {
     expect(validGraph?.graph.segments.length).toBeGreaterThan(0)
     expect(invalidGraph?.error).toBeTruthy()
     expect(invalidGraph?.graph).toEqual({ segments: [], skippedPointCount: 0 })
+  })
+})
+
+describe('buildRenderedProjectionMarkers', () => {
+  it('builds guide endpoints from a numeric point to the axes', () => {
+    const axis = {
+      ...DEFAULT_AXIS_CONFIG,
+      xMin: -2,
+      xMax: 5,
+      yMin: -1,
+      yMax: 4,
+    }
+    const [marker] = buildRenderedProjectionMarkers(
+      [
+        {
+          id: 'marker-1',
+          x: 4,
+          y: 3,
+          pointLabel: '',
+          xLabel: '4',
+          yLabel: '3a',
+          showPoint: true,
+          showXGuide: true,
+          showYGuide: true,
+          stroke: '#737373',
+          error: null,
+        },
+      ],
+      axis,
+    )
+    const point = toSvgPoint({ x: 4, y: 3 }, axis)
+
+    expect(marker.isVisible).toBe(true)
+    expect(marker.point?.x).toBeCloseTo(point.x)
+    expect(marker.point?.y).toBeCloseTo(point.y)
+    expect(marker.xGuideEnd).toEqual({
+      x: point.x,
+      y: getHorizontalAxisSvgY(axis),
+    })
+    expect(marker.yGuideEnd).toEqual({
+      x: getVerticalAxisSvgX(axis),
+      y: point.y,
+    })
+  })
+
+  it('keeps numeric coordinates separate from display labels', () => {
+    const [marker] = buildRenderedProjectionMarkers(
+      [
+        {
+          id: 'marker-1',
+          x: 4,
+          y: 3,
+          pointLabel: 'P',
+          xLabel: '4',
+          yLabel: '3a',
+          showPoint: true,
+          showXGuide: true,
+          showYGuide: true,
+          stroke: '#737373',
+          error: null,
+        },
+      ],
+      DEFAULT_AXIS_CONFIG,
+    )
+
+    expect(marker.y).toBe(3)
+    expect(marker.yLabel).toBe('3a')
+    expect(marker.pointLabel).toBe('P')
+  })
+
+  it('hides markers outside the visible axis range', () => {
+    const [marker] = buildRenderedProjectionMarkers(
+      [
+        {
+          id: 'marker-1',
+          x: 20,
+          y: 3,
+          pointLabel: '',
+          xLabel: '20',
+          yLabel: '3',
+          showPoint: true,
+          showXGuide: true,
+          showYGuide: true,
+          stroke: '#737373',
+          error: null,
+        },
+      ],
+      DEFAULT_AXIS_CONFIG,
+    )
+
+    expect(marker.isVisible).toBe(false)
+    expect(marker.point).toBeNull()
+    expect(marker.error).toContain('화면 밖')
   })
 })
 

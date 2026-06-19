@@ -3,24 +3,36 @@ import {
   CANVAS_PADDING,
   CANVAS_WIDTH,
   buildSvgPath,
+  getHorizontalAxisSvgY,
   getAxisTicks,
+  getVerticalAxisSvgX,
   toSvgPoint,
 } from '../lib/graphMath'
-import type { AxisConfig, RenderedFunctionGraph } from '../model/graphObjects'
+import type {
+  AxisConfig,
+  RenderedFunctionGraph,
+  RenderedProjectionMarker,
+} from '../model/graphObjects'
 
 interface GraphCanvasProps {
   axisConfig: AxisConfig
   graphs: RenderedFunctionGraph[]
+  markers: RenderedProjectionMarker[]
 }
 
-export function GraphCanvas({ axisConfig, graphs }: GraphCanvasProps) {
+const mathLabelStyle = {
+  fontFamily: 'Georgia, "Times New Roman", serif',
+  fontStyle: 'italic',
+} as const
+
+export function GraphCanvas({ axisConfig, graphs, markers }: GraphCanvasProps) {
   const { xTicks, yTicks } = getAxisTicks(axisConfig)
   const plotLeft = CANVAS_PADDING
   const plotRight = CANVAS_WIDTH - CANVAS_PADDING
   const plotTop = CANVAS_PADDING
   const plotBottom = CANVAS_HEIGHT - CANVAS_PADDING
-  const xAxisY = getHorizontalAxisY(axisConfig)
-  const yAxisX = getVerticalAxisX(axisConfig)
+  const xAxisY = getHorizontalAxisSvgY(axisConfig)
+  const yAxisX = getVerticalAxisSvgX(axisConfig)
 
   return (
     <div className="flex h-full min-h-[520px] items-center justify-center">
@@ -113,14 +125,16 @@ export function GraphCanvas({ axisConfig, graphs }: GraphCanvasProps) {
           <text
             x={plotRight + 16}
             y={xAxisY + 6}
-            className="fill-neutral-800 text-lg font-semibold"
+            className="fill-neutral-800 text-2xl"
+            style={mathLabelStyle}
           >
             x
           </text>
           <text
             x={yAxisX - 8}
             y={plotTop - 14}
-            className="fill-neutral-800 text-lg font-semibold"
+            className="fill-neutral-800 text-2xl"
+            style={mathLabelStyle}
           >
             y
           </text>
@@ -138,6 +152,86 @@ export function GraphCanvas({ axisConfig, graphs }: GraphCanvasProps) {
               />
             )),
           )}
+
+          {markers.map((marker) => {
+            if (!marker.isVisible || !marker.point) {
+              return null
+            }
+
+            return (
+              <g key={marker.id}>
+                {marker.showYGuide && marker.yGuideEnd ? (
+                  <line
+                    x1={marker.yGuideEnd.x}
+                    x2={marker.point.x}
+                    y1={marker.point.y}
+                    y2={marker.point.y}
+                    stroke={marker.stroke}
+                    strokeDasharray="6 5"
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                  />
+                ) : null}
+
+                {marker.showXGuide && marker.xGuideEnd ? (
+                  <line
+                    x1={marker.point.x}
+                    x2={marker.point.x}
+                    y1={marker.point.y}
+                    y2={marker.xGuideEnd.y}
+                    stroke={marker.stroke}
+                    strokeDasharray="6 5"
+                    strokeLinecap="round"
+                    strokeWidth="2"
+                  />
+                ) : null}
+
+                {marker.showPoint ? (
+                  <circle
+                    cx={marker.point.x}
+                    cy={marker.point.y}
+                    fill={marker.stroke}
+                    r="4"
+                  />
+                ) : null}
+
+                {marker.pointLabel ? (
+                  <text
+                    x={marker.point.x + 10}
+                    y={marker.point.y - 10}
+                    className="fill-neutral-800 text-xl"
+                    style={mathLabelStyle}
+                  >
+                    {marker.pointLabel}
+                  </text>
+                ) : null}
+
+                {marker.xLabel ? (
+                  <text
+                    x={marker.point.x}
+                    y={xAxisY + 30}
+                    className="fill-neutral-800 text-2xl"
+                    style={mathLabelStyle}
+                    textAnchor="middle"
+                  >
+                    {marker.xLabel}
+                  </text>
+                ) : null}
+
+                {marker.yLabel ? (
+                  <text
+                    x={yAxisX - 14}
+                    y={marker.point.y + 8}
+                    className="fill-neutral-800 text-2xl"
+                    style={mathLabelStyle}
+                    textAnchor="end"
+                  >
+                    {marker.yLabel}
+                  </text>
+                ) : null}
+              </g>
+            )
+          })}
 
           <g transform={`translate(${plotLeft + 12} ${plotTop + 20})`}>
             {graphs.map((graph, index) => (
@@ -161,20 +255,4 @@ export function GraphCanvas({ axisConfig, graphs }: GraphCanvasProps) {
       </div>
     </div>
   )
-}
-
-function getHorizontalAxisY(axisConfig: AxisConfig) {
-  if (axisConfig.yMin <= 0 && axisConfig.yMax >= 0) {
-    return toSvgPoint({ x: 0, y: 0 }, axisConfig).y
-  }
-
-  return axisConfig.yMin > 0 ? CANVAS_HEIGHT - CANVAS_PADDING : CANVAS_PADDING
-}
-
-function getVerticalAxisX(axisConfig: AxisConfig) {
-  if (axisConfig.xMin <= 0 && axisConfig.xMax >= 0) {
-    return toSvgPoint({ x: 0, y: 0 }, axisConfig).x
-  }
-
-  return axisConfig.xMin > 0 ? CANVAS_PADDING : CANVAS_WIDTH - CANVAS_PADDING
 }

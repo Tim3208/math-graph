@@ -2,7 +2,9 @@ import { compile } from 'mathjs'
 import type {
   AxisConfig,
   FunctionGraphInputState,
+  ProjectionMarkerInputState,
   RenderedFunctionGraph,
+  RenderedProjectionMarker,
   SampledFunctionGraph,
   SvgPoint,
 } from '../model/graphObjects'
@@ -154,6 +156,50 @@ export function buildRenderedFunctionGraphs(
   }
 }
 
+export function buildRenderedProjectionMarkers(
+  markers: ProjectionMarkerInputState[],
+  axis: AxisConfig,
+): RenderedProjectionMarker[] {
+  const axisValidation = validateAxisConfig(axis)
+
+  if (!axisValidation.isValid) {
+    return markers.map((marker) => createHiddenMarker(marker, axisValidation.error))
+  }
+
+  return markers.map((marker) => {
+    if (!Number.isFinite(marker.x) || !Number.isFinite(marker.y)) {
+      return createHiddenMarker(marker, '보조 표시 좌표는 유효한 숫자여야 합니다.')
+    }
+
+    const isVisible =
+      marker.x >= axis.xMin &&
+      marker.x <= axis.xMax &&
+      marker.y >= axis.yMin &&
+      marker.y <= axis.yMax
+
+    if (!isVisible) {
+      return createHiddenMarker(marker, '현재 화면 밖에 있는 표시입니다.')
+    }
+
+    const point = toSvgPoint({ x: marker.x, y: marker.y }, axis)
+
+    return {
+      ...marker,
+      error: null,
+      isVisible: true,
+      point,
+      xGuideEnd: {
+        x: point.x,
+        y: getHorizontalAxisSvgY(axis),
+      },
+      yGuideEnd: {
+        x: getVerticalAxisSvgX(axis),
+        y: point.y,
+      },
+    }
+  })
+}
+
 export function sampleFunctionGraph(
   formula: CompiledFormula,
   axis: AxisConfig,
@@ -223,6 +269,22 @@ export function toSvgPoint(point: { x: number; y: number }, axis: AxisConfig): S
   }
 }
 
+export function getHorizontalAxisSvgY(axis: AxisConfig) {
+  if (axis.yMin <= 0 && axis.yMax >= 0) {
+    return toSvgPoint({ x: 0, y: 0 }, axis).y
+  }
+
+  return axis.yMin > 0 ? CANVAS_HEIGHT - CANVAS_PADDING : CANVAS_PADDING
+}
+
+export function getVerticalAxisSvgX(axis: AxisConfig) {
+  if (axis.xMin <= 0 && axis.xMax >= 0) {
+    return toSvgPoint({ x: 0, y: 0 }, axis).x
+  }
+
+  return axis.xMin > 0 ? CANVAS_PADDING : CANVAS_WIDTH - CANVAS_PADDING
+}
+
 export function buildSvgPath(points: SvgPoint[]): string {
   return points
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${round(point.x)} ${round(point.y)}`)
@@ -249,6 +311,20 @@ function buildTicks(min: number, max: number, tick: number): number[] {
 
 function crossesLikelyAsymptote(lastValue: number | null, value: number, yRange: number) {
   return lastValue !== null && Math.abs(value - lastValue) > yRange * 0.9
+}
+
+function createHiddenMarker(
+  marker: ProjectionMarkerInputState,
+  error: string | null,
+): RenderedProjectionMarker {
+  return {
+    ...marker,
+    error,
+    isVisible: false,
+    point: null,
+    xGuideEnd: null,
+    yGuideEnd: null,
+  }
 }
 
 function getSampleBounds(axis: AxisConfig, domain?: FunctionDomain) {
